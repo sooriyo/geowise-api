@@ -12,7 +12,7 @@ export class SensorController {
   sendData(@Body() data: SensorData): string {
     const topic = 'geowise/sensor';
     const message = JSON.stringify(data);
-    this.mqttService.publish(topic, message);
+    // this.mqttService.publish(topic, message);
     return 'Data sent to ESP32';
   }
 

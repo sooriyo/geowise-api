@@ -25,7 +25,6 @@ let SensorController = class SensorController {
     sendData(data) {
         const topic = 'geowise/sensor';
         const message = JSON.stringify(data);
-        this.mqttService.publish(topic, message);
         return 'Data sent to ESP32';
     }
     async find(id) {
