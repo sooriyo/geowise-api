@@ -1,0 +1,108 @@
+#include <DHT.h>
+#include <WiFi.h> // For ESP32/ESP8266, use <ESP8266WiFi.h> for ESP8266
+#include <PubSubClient.h>
+#include <ArduinoJson.h> // Include the ArduinoJson library for JSON handling
+
+// Wi-Fi Credentials
+#define wifi_ssid "Dialog 4G 510"
+#define wifi_password "1bF9a8d1"
+
+// MQTT Broker Details
+#define mqtt_server "15.235.192.41"
+#define mqtt_port 1883
+#define mqtt_user "sadee"
+#define mqtt_password "qwerty"
+#define mqtt_topic "esp/geowise"
+
+// Define pin for the DHT22 sensor
+#define DHT22_PIN 33 // Adjust this pin number according to your setup
+
+// Define ADC pin based on the board
+#if defined(ESP8266)
+  const int adcPin = A0;
+#elif defined(ESP32)
+  const int adcPin = 34;
+#elif defined(ARDUINO_ARCH_RP2040)
+  const int adcPin = 26;
+#endif
+
+// Moisture sensor threshold values
+const int DRY = 720; // Adjust according to your use case
+const int WET = 560; // Adjust according to your use case
+
+DHT dht22(DHT22_PIN, DHT22);
+WiFiClient wifiClient;
+PubSubClient mqttClient(wifiClient);
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(adcPin, INPUT);
+  dht22.begin(); // Initialize the DHT22 sensor
+
+  // Connect to Wi-Fi
+  WiFi.begin(wifi_ssid, wifi_password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("Connected to WiFi");
+
+  // Set MQTT server
+  mqttClient.setServer(mqtt_server, mqtt_port);
+}
+
+void loop() {
+  // Ensure MQTT connection
+  if (!mqttClient.connected()) {
+    reconnect();
+  }
+  mqttClient.loop();
+
+  // Read soil moisture
+  int sensorVal = analogRead(adcPin);
+  int percentage = map(sensorVal, WET, DRY, 100, 0);
+
+  // Read humidity
+  float humi = dht22.readHumidity();
+  // Read temperature in Celsius
+  float tempC = dht22.readTemperature();
+
+  // Check whether the reading is successful or not
+  if (!isnan(tempC) && !isnan(humi)) {
+    // Create a JSON object
+    StaticJsonDocument<200> jsonDoc;
+    jsonDoc["temperature"] = tempC;
+    jsonDoc["humidity"] = humi;
+    jsonDoc["soil_moisture"] = percentage;
+
+    // Serialize JSON to string
+    char jsonBuffer[256];
+    serializeJson(jsonDoc, jsonBuffer);
+
+    // Publish the JSON message
+    mqttClient.publish(mqtt_topic, jsonBuffer);
+    Serial.println("Published: " + String(jsonBuffer));
+  } else {
+    Serial.println("Failed to read from DHT22 sensor!");
+  }
+
+  // Wait 2 seconds between readings
+  delay(2000);
+}
+
+void reconnect() {
+  // Loop until we're reconnected
+  while (!mqttClient.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect with username and password
+    if (mqttClient.connect("ESP8266Client", mqtt_user, mqtt_password)) { // Change client ID if needed
+      Serial.println("connected");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(mqttClient.state());
+      Serial.println(" try again in 2 seconds");
+      // Wait 2 seconds before retrying
+      delay(2000);
+    }
+  }
+}
