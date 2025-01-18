@@ -27,7 +27,7 @@ let MqttService = MqttService_1 = class MqttService {
             host: '15.235.192.41',
             port: 1883,
             username: 'sadee',
-            password: 'qwerty',
+            password: '9tC4MUEQbsy9',
         };
         this.client = mqtt.connect(options);
         this.logger.log(`Attempting to connect to MQTT broker at ${options.host}:${options.port}`);
